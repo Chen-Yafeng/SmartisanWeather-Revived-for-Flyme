@@ -57,7 +57,7 @@ class WeatherApiClientTest {
         assertNotNull(weather)
         weather!!
         assertTrue(weather.isComplete)
-        assertEquals("小米天气、彩云天气、北京气象局、中国环境监测总站", weather.source)
+        assertEquals("中央气象台、中国环境监测总站", weather.source)
         assertEquals(8 * 60 * 60, weather.timezoneOffsetSeconds)
         assertEquals("25", weather.observe.tempC)
         assertEquals("77", weather.observe.tempF)

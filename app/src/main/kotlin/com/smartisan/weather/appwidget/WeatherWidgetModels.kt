@@ -45,11 +45,11 @@ internal data class WeatherWidgetLayoutSpec(
 ) {
     companion object {
         fun fromSize(widthDp: Int, heightDp: Int): WeatherWidgetLayoutSpec {
-            val wide = widthDp >= 250
+            val wide = widthDp >= 360
             val roomy = heightDp >= 148
             return WeatherWidgetLayoutSpec(
                 isWide = wide,
-                outerPaddingDp = if (widthDp < 145 || heightDp < 130) 10 else 12,
+                outerPaddingDp = if (widthDp < 145 || heightDp < 130) 14 else 16,
                 currentTemperatureSp = when {
                     wide -> 36
                     roomy -> 42
@@ -61,7 +61,7 @@ internal data class WeatherWidgetLayoutSpec(
                     widthDp >= 280 -> 3
                     else -> 2
                 },
-                showMeta = heightDp >= 138,
+                showMeta = heightDp >= 80,
             )
         }
     }

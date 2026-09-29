@@ -81,6 +81,8 @@ fun rememberWeatherDrawablePainter(
     val direction = LocalLayoutDirection.current
     SideEffect {
         owner.painter.drawable.state = weatherDrawableState(enabled, pressed, selected, focused, checked)
+        owner.painter.drawable.jumpToCurrentState()
+        owner.painter.drawable.invalidateSelf()
         owner.painter.drawable.layoutDirection = if (direction == LayoutDirection.Rtl) View.LAYOUT_DIRECTION_RTL else View.LAYOUT_DIRECTION_LTR
     }
     return owner.painter
