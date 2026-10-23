@@ -42,6 +42,8 @@
     <string name="weather_alert_frost_fire">Forest fire</string>
     <string name="weather_alert_frozen">Freeze</string>
     <string name="weather_alert_low_temp">Low temperature</string>
+    <string name="weather_alert_notification_channel_description">Weather warnings for saved cities</string>
+    <string name="weather_alert_notification_summary">%1$s: %2$d weather warnings</string>
     <string name="weather_alert_road_ice_and_snow">Road snow and ice</string>
     <string name="weather_alert_thunderstorm">Thunderstorm winds</string>
     <string name="weather_alert_time_now">Updated just now</string>
@@ -59,10 +61,6 @@
     <string name="weather_pager_aqi_text">Air Quality </string>
     <string name="weather_pager_update_text">Updated on %1$s</string>
     <string name="weather_pager_week_and_date_text">%1$s %2$s</string>
-    <string name="weather_startup_notice_title">Usage Notice</string>
-    <string name="weather_startup_notice_exit">Exit</string>
-    <string name="weather_startup_notice_continue">Continue</string>
-    <string name="weather_startup_notice_message">This is an unofficial open-source version <b>completely rewritten by an individual developer with a modern Android technology stack</b>. It has no affiliation, authorization, or partnership with Smartisan, Hammer Technology, Xiaomi, or AccuWeather and is intended solely for learning and technical exchange.\n\nData is retrieved through Xiaomi Weather; global-city data is provided by AccuWeather. Location is used only to match your city. The app has no account system, ads, analytics, or relay server. All data remains on your device, and the complete source code is open on GitHub. Weather information is for reference only.</string>
     <string name="weather_request_location_permission_tips_cancel">Cancel</string>
     <string name="weather_request_location_permission_tips_setting">Go to settings</string>
     <string name="weather_search_city_default_locaiton">Location Service</string>

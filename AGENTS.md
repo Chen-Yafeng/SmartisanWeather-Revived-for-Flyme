@@ -48,8 +48,9 @@ app/src/main/res/
 - **网络**：`HttpURLConnection` + `org.json`，统一接入小米天气 `wtr-v3`；中国城市使用混合数据，全球城市使用其 AccuWeather 链路，不使用 Retrofit/Moshi。
 - **依赖注入**：Application/Repository 手动单例，不引入 DI 框架。
 - **系统 UI**：target/compile API 37，页面使用 Compose WindowInsets 分别消费系统栏、刘海和 IME Insets，内容画布仍限制 480dp 居中。
-- **定位**：系统 `LocationManager` + AndroidX `LocationManagerCompat` 获取坐标，精确/粗略权限联合申请；ViewModel 管理并发单次定位、取消、城市反查和天气刷新。手动同城刷新强制更新天气，前台自动定位按 5 分钟节流；不引入第三方定位 SDK 或后台定位。策略与官方依据见 `docs/location-refresh.md`。
+- **定位**：系统 `LocationManager` + AndroidX `LocationManagerCompat` 获取坐标，精确/粗略权限联合申请；ViewModel 管理并发单次定位、取消、城市反查和天气刷新。手动刷新定位城市时先立即刷新已有定位城市的天气再取坐标（方案 A），定位结果落在同一城市不再重复请求；前台自动定位按 10 分钟节流，节流时间戳存 DataStore 以便跨重启生效，取消定位会清空时间戳不占用窗口；不引入第三方定位 SDK 或后台定位。桌面小组件在定位城市上点刷新时，交由不可见的 `WeatherWidgetRefreshActivity` 复用前台定位权限重新定位，同样不使用后台定位。策略与官方依据见 `docs/location-refresh.md`。
 - **资源**：当前仍使用的原版 PNG、selector、动画和 NinePatch 已从 APK 资源表恢复并由 aapt2 正常编译；未使用的旧资源已按引用清理；不要再用 Compose 渐变替换这些资源。
+- **小组件**：Glance 复用同一套原版 NinePatch 背景。夜间和主页面天气卡一样盖 `weather_top_card_scrim`，但遮罩必须是 `-night` 限定的圆角 shape 资源（`weather_widget_night_scrim`），不能合成进背景位图：位图写进 RemoteViews 就固化，而系统切换深色模式不会给后台进程任何回调（没有可静态注册的 uiMode 广播，Glance 只处理 `LOCALE_CHANGED`），只能靠桌面重新应用 RemoteViews 时按当前配置解析资源。遮罩圆角跟随图集（约 10dp）以免涂黑 9-patch 透明圆角；`cornerRadius` 只在 API 31+ 生效，所以 31+ 用系统半径变体。`SmartisanWeatherApplication.onConfigurationChanged` 只在前台/进程存活时补一次直接重绘，不是可靠触发点。
 
 当前 namespace 为 `com.smartisan.weather`，applicationId 为 `app.smartisanweather.revived`。原版包名 `com.smartisanos.weather` 仅用于逆向对照，不得作为新源码包。
 

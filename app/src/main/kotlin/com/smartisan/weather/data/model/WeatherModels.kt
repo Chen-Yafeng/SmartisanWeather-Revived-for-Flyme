@@ -14,6 +14,7 @@ import java.time.ZoneOffset
  * @param publishTime 发布时间（epoch 毫秒）
  * @param levelNumber 预警等级编号
  * @param type 预警类型文本
+ * @param alertId 服务端预警 ID，用于通知去重；旧缓存没有该字段时为空
  */
 data class AlertInfo(
     val typeNumber: String = "",
@@ -22,6 +23,7 @@ data class AlertInfo(
     val publishTime: Long = 0L,
     val levelNumber: String = "",
     val type: String = "",
+    val alertId: String = "",
 ) : Serializable
 
 /**

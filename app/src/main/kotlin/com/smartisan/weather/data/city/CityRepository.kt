@@ -59,8 +59,16 @@ class CityRepository(context: Context) {
         result
     }
 
-    /** 添加定位城市 */
-    suspend fun setLocationCity(city: SearchResultCity): AddResult = withContext(Dispatchers.IO) {
+    /**
+     * 添加定位城市。
+     *
+     * @param refreshWidgets 是否顺带入队一次小组件刷新。主界面定位成功后保持默认 `true`；
+     * 小组件自己触发的定位会自行请求并重绘，传 `false` 避免同一城市被请求两次。
+     */
+    suspend fun setLocationCity(
+        city: SearchResultCity,
+        refreshWidgets: Boolean = true,
+    ): AddResult = withContext(Dispatchers.IO) {
         val replaced = dao.replaceLocationCity(
             entity =
                 SavedCityEntity(
@@ -74,7 +82,10 @@ class CityRepository(context: Context) {
             maxCities = MAX_CITIES,
         )
         if (replaced) {
-            WeatherWidgetUpdateNotifier.notifyDataChanged(appContext, requestRefresh = true)
+            WeatherWidgetUpdateNotifier.notifyDataChanged(
+                context = appContext,
+                requestRefresh = refreshWidgets,
+            )
             AddResult.SUCCESS
         } else {
             AddResult.LIMIT_EXCEEDED
@@ -126,6 +137,15 @@ class CityRepository(context: Context) {
             val json = cache.weatherJson ?: return@withContext null
             CachedWeatherRecord(json = json, updatedAtMillis = cache.lastUpdate)
         }
+
+    /**
+     * 只读取缓存写入时间。
+     *
+     * 自动刷新判定只需要时间戳，没必要为每个城市反序列化整份天气 JSON。
+     */
+    suspend fun getCachedWeatherUpdatedAt(key: String): Long? = withContext(Dispatchers.IO) {
+        dao.getCacheUpdatedAt(key)
+    }
 
     /** 搜索中国及全球城市。小米接口一次返回完整结果，不提供分页。 */
     suspend fun searchCities(query: String): List<SearchResultCity> = withContext(Dispatchers.IO) {

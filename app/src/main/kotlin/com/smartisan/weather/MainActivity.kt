@@ -30,7 +30,6 @@ import com.smartisan.weather.ui.main.WeatherViewModel
 import com.smartisan.weather.ui.navigation.WeatherEdgeToEdgeActivity
 import com.smartisan.weather.ui.navigation.startWeatherActivityForResult
 import com.smartisan.weather.ui.search.SearchCityActivity
-import com.smartisan.weather.ui.startup.StartupNoticeDialog
 import com.smartisan.weather.util.Constants
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -46,21 +45,32 @@ import com.smartisan.weather.ui.navigation.toSearchLocation
 import com.smartisan.weather.ui.startup.WeatherLocationDialog
 import com.smartisan.weather.ui.startup.LocationNotice
 
+import android.content.pm.PackageManager
+import android.os.Build
+
 /** Owns permissions, navigation and lifecycle; Compose owns the weather presentation. */
 class MainActivity : WeatherEdgeToEdgeActivity() {
-    // Accessed only after the local startup notice has been accepted.
     private val viewModel by viewModels<WeatherViewModel>()
     private var weatherStarted by mutableStateOf(false)
-    private var showStartupNotice by mutableStateOf(false)
     private var locationNotice by mutableStateOf<LocationNotice?>(null)
     private var awaitingLocationPermission = false
     private var awaitingLocationSettings = false
     private var firstStart = true
     private var initialSearchLaunched = false
     private var initialLocationRequested = false
+    private var notificationPermissionAsked = false
     private var pendingWidgetCityKey: String? = null
     private val settings by lazy(LazyThreadSafetyMode.NONE) { WeatherSettings.getInstance(this) }
     private val networkMonitor by lazy(LazyThreadSafetyMode.NONE) { NetworkMonitor(this) }
+
+    private val notificationPermissionLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.RequestPermission(),
+        ) {
+            // 必须先等通知权限结果再启动天气：页面启动后会立刻申请定位权限，
+            // 两个权限请求并行时系统只会保留一个，后发起的定位请求会被丢弃。
+            startWeather()
+        }
 
     private val locationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -148,16 +158,6 @@ class MainActivity : WeatherEdgeToEdgeActivity() {
                     onManageCities = {}, onOpenAlerts = { _, _ -> }, onLocate = {}, onOpenSource = {},
                 )
             }
-            if (showStartupNotice) StartupNoticeDialog(
-                onContinue = {
-                    lifecycleScope.launch {
-                        settings.setStartupNoticeAccepted(true)
-                        showStartupNotice = false
-                        startWeather()
-                    }
-                },
-                onExit = ::finish,
-            )
             locationNotice?.let { notice ->
                 WeatherLocationDialog(
                     notice = notice,
@@ -191,9 +191,7 @@ class MainActivity : WeatherEdgeToEdgeActivity() {
                 )
             }
         }
-        lifecycleScope.launch {
-            if (settings.startupNoticeAccepted.first()) startWeather() else showStartupNotice = true
-        }
+        requestNotificationPermissionThenStart()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -336,6 +334,37 @@ class MainActivity : WeatherEdgeToEdgeActivity() {
         }
     }
 
+    /**
+     * 启动天气前先处理通知权限。
+     *
+     * Android 同一时刻只允许一个权限请求，因此这里等待通知权限结果后再调用 [startWeather]，
+     * 由页面接着走定位权限流程，保证两个请求不会互相丢弃。
+     *
+     * 只在从未询问过时弹窗；用户拒绝后不再重复打扰，权限在系统设置里恢复后后台任务会自动开始推送。
+     */
+    private fun requestNotificationPermissionThenStart() {
+        if (
+            notificationPermissionAsked ||
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            checkSelfPermission(
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            startWeather()
+            return
+        }
+        notificationPermissionAsked = true
+        lifecycleScope.launch {
+            if (settings.readNotificationPermissionRequested()) {
+                startWeather()
+                return@launch
+            }
+            // 记录已询问过，之后启动不再重复弹窗，用户可自行到系统设置开启。
+            settings.markNotificationPermissionRequested()
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
     private fun requestLocationPermissions() {
         awaitingLocationPermission = true
         locationPermissionLauncher.launch(
@@ -359,12 +388,8 @@ class MainActivity : WeatherEdgeToEdgeActivity() {
         locationNotice != null || awaitingLocationPermission || awaitingLocationSettings
 
     private fun continueLocationAfterExternalUi(action: () -> Unit) {
-        lifecycleScope.launch {
-            // Activity results can arrive before the startup DataStore read after process recreation.
-            if (settings.startupNoticeAccepted.first()) {
-                startWeather()
-                action()
-            }
-        }
+        // Activity results can arrive before onCreate finishes wiring the state collectors.
+        startWeather()
+        action()
     }
 }

@@ -100,7 +100,9 @@ class WeatherApiClientTest {
         assertEquals("0.80", weather.airQuality.co)
         assertEquals(1, weather.alert.infos.size)
         assertEquals("暴雨", weather.alert.infos.single().type)
+        assertEquals("02", weather.alert.infos.single().typeNumber)
         assertEquals("03", weather.alert.infos.single().levelNumber)
+        assertEquals("fixture-alert", weather.alert.infos.single().alertId)
         assertEquals(1_487_575_500_000L, weather.alert.infos.single().publishTime)
     }
 
@@ -111,7 +113,7 @@ class WeatherApiClientTest {
         assertNotNull(weather)
         weather!!
         assertTrue(weather.isComplete)
-        assertEquals("小米天气、Accu Weather", weather.source)
+        assertEquals("Accu Weather", weather.source)
         assertEquals(60 * 60, weather.timezoneOffsetSeconds)
         assertEquals(
             "https://www.accuweather.com/zh/gb/london/weather-forecast/328328",
@@ -163,6 +165,44 @@ class WeatherApiClientTest {
 
         assertEquals(listOf("最新", "较早"), weather!!.alert.infos.map { it.content })
         assertEquals(listOf("04", "02"), weather.alert.infos.map { it.levelNumber })
+        assertEquals(listOf("02", "09"), weather.alert.infos.map { it.typeNumber })
+    }
+
+    @Test
+    fun `alert types map to original icon numbers and keep server alert id`() {
+        val weather = client.parseWeather(
+            """
+                {
+                  "current": {"temperature":{"value":20}, "weather":0},
+                  "alerts": [
+                    {"alertId":"a-1","pubTime":"2026-07-31T10:00:00+08:00", "type":"雷雨大风", "level":"蓝色", "detail":"特殊"},
+                    {"alertId":"a-2","pubTime":"2026-07-31T10:01:00+08:00", "type":"道路结冰", "level":"黄色", "detail":"标准"},
+                    {"pubTime":"2026-07-31T10:02:00+08:00", "type":"强对流", "level":"橙色", "detail":"未知"}
+                  ]
+                }
+            """.trimIndent(),
+        )
+
+        assertEquals(
+            listOf("", "14", "00"),
+            weather!!.alert.infos.map { it.typeNumber },
+        )
+        assertEquals(
+            listOf("", "a-2", "a-1"),
+            weather.alert.infos.map { it.alertId },
+        )
+    }
+
+    @Test
+    fun `cached alert keeps type number and server alert id`() {
+        val weather = client.parseWeather(loadFixture())!!
+
+        val restored = WeatherRepository.jsonToWeather(
+            WeatherRepository.weatherToJson(weather),
+        )!!
+
+        assertEquals("02", restored.alert.infos.single().typeNumber)
+        assertEquals("fixture-alert", restored.alert.infos.single().alertId)
     }
 
     @Test

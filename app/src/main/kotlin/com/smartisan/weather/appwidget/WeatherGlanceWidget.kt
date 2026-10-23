@@ -138,6 +138,7 @@ private sealed interface WeatherWidgetDisplayModel {
     data class Ready(
         val cityName: String,
         val cityKey: String,
+        val isLocationCity: Boolean,
         val backgroundRes: Int,
         val weatherIconRes: Int,
         val condition: String,
@@ -165,10 +166,6 @@ private object WeatherWidgetDisplayModelLoader {
         noCacheState: WeatherWidgetEmptyState,
     ): WeatherWidgetDisplayModel {
         val settings = WeatherSettings.getInstance(context)
-        if (!settings.startupNoticeAccepted.first()) {
-            return empty(context, WeatherWidgetEmptyState.SETUP_REQUIRED)
-        }
-
         val cities = CityRepository(context).savedCities.first()
         if (cities.isEmpty()) return empty(context, WeatherWidgetEmptyState.CITY_REQUIRED)
         val selection = settings.readWidgetCitySelections(intArrayOf(appWidgetId))[appWidgetId]
@@ -189,6 +186,7 @@ private object WeatherWidgetDisplayModelLoader {
         return WeatherWidgetDisplayModel.Ready(
             cityName = city.displayName,
             cityKey = city.locationKey,
+            isLocationCity = city.isLocationCity,
             backgroundRes = weatherWidgetBackground(theme.getInfoBgRes()),
             weatherIconRes = currentIcon,
             condition = context.getString(conditionRes),
@@ -309,6 +307,7 @@ private fun WeatherWidgetSurface(
             .cornerRadius(android.R.dimen.system_app_widget_background_radius)
             .clickable(openWeather),
     ) {
+        NightScrim()
         when (model) {
             is WeatherWidgetDisplayModel.Empty -> EmptyWidget(model)
             is WeatherWidgetDisplayModel.Ready -> ReadyWidget(
@@ -319,6 +318,25 @@ private fun WeatherWidgetSurface(
             )
         }
     }
+}
+
+/**
+ * 夜间遮罩，和主页面天气卡使用同一个 [R.color.weather_top_card_scrim]。
+ *
+ * 遮罩做成带 `-night` 限定的形状资源，由桌面进程在应用 RemoteViews 时按当前配置解析；
+ * 不合成进背景位图，是因为位图一旦写进 RemoteViews 就固化，之后只能靠我们的进程重绘。
+ * 圆角跟随原版卡片图集，否则矩形色块会把 9-patch 的透明圆角涂黑。
+ */
+@Composable
+private fun NightScrim() {
+    Box(
+        modifier = GlanceModifier
+            .fillMaxSize()
+            .background(
+                imageProvider = ImageProvider(R.drawable.weather_widget_night_scrim),
+                contentScale = ContentScale.FillBounds,
+            ),
+    ) {}
 }
 
 private fun weatherWidgetBackground(infoBackgroundRes: Int): Int {
@@ -397,6 +415,13 @@ private fun WidgetHeader(
     model: WeatherWidgetDisplayModel.Ready,
     spec: WeatherWidgetLayoutSpec,
 ) {
+    // 定位城市点刷新需要重新取一次坐标，只能借前台 Activity 完成；
+    // 其余城市保持原来的后台刷新，避免多起窗口。
+    val refreshAction = if (model.isLocationCity && WeatherWidgetRefreshActivity.canLocate(context)) {
+        actionStartActivity(WeatherWidgetRefreshActivity.intent(context, appWidgetId))
+    } else {
+        actionRunCallback<WeatherWidgetRefreshAction>()
+    }
     Row(
         modifier = GlanceModifier.fillMaxWidth().height(32.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -433,7 +458,7 @@ private fun WidgetHeader(
                     imageProvider = ImageProvider(R.drawable.weather_widget_action_background),
                     contentScale = ContentScale.FillBounds,
                 )
-                .clickable(actionRunCallback<WeatherWidgetRefreshAction>()),
+                .clickable(refreshAction),
             contentAlignment = Alignment.Center,
         ) {
             Image(

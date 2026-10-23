@@ -9,6 +9,7 @@ import com.smartisan.weather.data.model.Observe
 import com.smartisan.weather.data.model.SearchResultCity
 import com.smartisan.weather.data.model.Weather
 import com.smartisan.weather.data.model.WeatherAlert
+import com.smartisan.weather.util.Constants
 import com.smartisan.weather.util.ResMappingUtil
 import com.smartisan.weather.util.WeatherCodeMapping
 import java.time.Instant
@@ -55,7 +56,7 @@ internal object XiaomiWeatherParser {
             )
             val alerts = parseAlerts(root.optJSONArray("alerts"))
             val uvIndex = current.text("uvIndex").ifBlank { parseIndex(root, "uvIndex") }
-            val source = parseSource(root, airQuality)
+            val source = parseSource(root)
             val timezoneOffsetSeconds = currentPublishTime?.offset?.totalSeconds
                 ?: parseApiDateTime(root.optJSONObject("forecastDaily")?.text("pubTime").orEmpty())
                     ?.offset
@@ -354,6 +355,7 @@ internal object XiaomiWeatherParser {
                 val alert = alerts.optJSONObject(index) ?: continue
                 val detail = alert.text("detail").ifBlank { alert.text("title") }
                 if (detail.isBlank()) continue
+                val type = alert.text("type")
                 add(
                     AlertInfo(
                         level = alert.text("level"),
@@ -363,32 +365,41 @@ internal object XiaomiWeatherParser {
                             ?.toEpochMilli()
                             ?: 0L,
                         levelNumber = alertLevelNumber(alert.text("level")),
-                        type = alert.text("type"),
+                        type = type,
+                        typeNumber = alertTypeNumber(type),
+                        alertId = alert.text("alertId"),
                     ),
                 )
             }
         }.sortedByDescending(AlertInfo::publishTime)
     }
 
-    private fun parseSource(root: JSONObject, airQuality: AirQuality): String {
-        val sources = linkedSetOf("小米天气")
-        root.optJSONObject("brandInfo")
-            ?.optJSONArray("brands")
-            ?.let { brands ->
-                for (index in 0 until brands.length()) {
-                    brands.optJSONObject(index)
-                        ?.optJSONObject("names")
-                        ?.text("zh_CN")
-                        ?.takeIf(String::isNotBlank)
-                        ?.let(sources::add)
-                }
-            }
-        if (airQuality.aqiValue.isNotBlank()) {
-            root.optJSONObject("aqi")?.text("src")
-                ?.takeIf(String::isNotBlank)
-                ?.let(sources::add)
+    /**
+     * 来源归因跟随响应。
+     *
+     * 全球城市由 AccuWeather 转接，响应品牌里会带 `Accu Weather` 名称或其域名；
+     * 中国城市使用小米混合数据，对外统一展示中央气象台与中国环境监测总站。
+     */
+    private fun parseSource(root: JSONObject): String =
+        if (hasAccuWeatherBrand(root)) {
+            Constants.WEATHER_DATA_SOURCE_GLOBAL
+        } else {
+            Constants.WEATHER_DATA_SOURCE
         }
-        return sources.joinToString("、")
+
+    private fun hasAccuWeatherBrand(root: JSONObject): Boolean {
+        val brands = root.optJSONObject("brandInfo")?.optJSONArray("brands") ?: return false
+        for (index in 0 until brands.length()) {
+            val brand = brands.optJSONObject(index) ?: continue
+            val name = brand.optJSONObject("names")?.text("zh_CN").orEmpty()
+            val url = brand.text("url")
+            if (name.contains("accu", ignoreCase = true) ||
+                url.contains("accuweather", ignoreCase = true)
+            ) {
+                return true
+            }
+        }
+        return false
     }
 
     private fun parseAttributionUrl(root: JSONObject): String {
@@ -482,6 +493,51 @@ internal object XiaomiWeatherParser {
         "红" -> "04"
         else -> "05"
     }
+
+    /**
+     * 小米预警只返回中文类型文本；映射回原 View 的 `alert_01`…`alert_14` 图标编号。
+     *
+     * 编号沿用气象灾害预警信号的标准顺序；原版把降温、寒冷等没有固定编号的类型
+     * 归入 `00`，并单独提供图标。未知类型保留空编号，由界面回退到通用图标。
+     */
+    private fun alertTypeNumber(type: String): String {
+        val name = type.trim().removeSuffix("预警").trim()
+        if (name.isEmpty()) return ""
+        alertTypeNumbers[name]?.let { return it }
+        specialAlertTypeNumbers[name]?.let { return it }
+        // 服务端偶尔返回“雷雨大风蓝色预警”“道路结冰橙色预警”这类复合名称，
+        // 先匹配特殊类型，再按标准类型兜底。
+        val candidates = specialAlertTypeNumbers.entries + alertTypeNumbers.entries
+        return candidates.firstOrNull { name.contains(it.key) }?.value.orEmpty()
+    }
+
+    private val alertTypeNumbers = linkedMapOf(
+        "台风" to "01",
+        "暴雨" to "02",
+        "暴雪" to "03",
+        "寒潮" to "04",
+        "大风" to "05",
+        "沙尘暴" to "06",
+        "高温" to "07",
+        "干旱" to "08",
+        "雷电" to "09",
+        "冰雹" to "10",
+        "霜冻" to "11",
+        "大雾" to "12",
+        "霾" to "13",
+        "道路结冰" to "14",
+    )
+
+    private val specialAlertTypeNumbers = linkedMapOf(
+        "道路冰雪" to "00",
+        "雷雨大风" to "00",
+        "森林火灾" to "00",
+        "干热风" to "00",
+        "寒冷" to "00",
+        "降温" to "00",
+        "冰冻" to "00",
+        "低温" to "00",
+    )
 
     private fun parseApiDateTime(value: String): OffsetDateTime? {
         if (value.isBlank()) return null

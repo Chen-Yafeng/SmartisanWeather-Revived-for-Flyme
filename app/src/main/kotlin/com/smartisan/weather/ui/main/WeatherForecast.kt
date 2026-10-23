@@ -55,6 +55,7 @@ import com.smartisan.weather.data.model.Weather
 import com.smartisan.weather.ui.components.WeatherDrawable
 import com.smartisan.weather.ui.components.WeatherText
 import com.smartisan.weather.ui.components.rememberWeatherDrawablePainter
+import com.smartisan.weather.util.Constants
 import com.smartisan.weather.util.ResMappingUtil
 import com.smartisan.weather.util.ThemeUtils
 import com.smartisan.weather.util.Utility
@@ -237,7 +238,7 @@ internal fun WeatherForecast(
             }
         }
         WeatherText(
-            weather.source.ifBlank { "天气数据：小米天气" },
+            weather.source.ifBlank { "天气数据：${Constants.WEATHER_DATA_SOURCE}" },
             Modifier.fillMaxWidth().clickable(remember { MutableInteractionSource() }, indication = null) { onOpenSource(weather.attributionUrl) }.padding(horizontal = 24.dp, vertical = 24.dp),
             color = valueColor, fontSize = weatherDpTextSize(10f), textAlign = TextAlign.Center,
         )

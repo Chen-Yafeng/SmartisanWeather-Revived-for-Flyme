@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    桌面小组件夜间遮罩。
+
+    颜色复用主页面的 weather_top_card_scrim：日间是全透明，夜间是 40% 黑。
+    圆角跟随原版卡片图集 bg_weather_info_*（xxhdpi 下约 28px ≈ 10dp），
+    避免矩形色块把 9-patch 的透明圆角涂黑。
+
+    这里刻意做成资源而不是渲染时合成进背景位图：位图一旦写进 RemoteViews 就固化了，
+    系统切换深色模式后必须等我们的进程重绘；而形状资源由桌面进程在应用 RemoteViews
+    时按当前配置解析，日夜间切换可以直接跟着变。
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/weather_top_card_scrim" />
+    <corners android:radius="@dimen/weather_widget_corner_radius" />
+</shape>

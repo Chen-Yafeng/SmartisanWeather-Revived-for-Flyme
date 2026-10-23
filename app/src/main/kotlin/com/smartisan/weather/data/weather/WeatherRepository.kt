@@ -3,10 +3,11 @@ package com.smartisan.weather.data.weather
 import android.content.Context
 import com.smartisan.weather.appwidget.WeatherWidgetUpdateNotifier
 import com.smartisan.weather.data.city.CityRepository
-import com.smartisan.weather.data.model.SavedCity
 import com.smartisan.weather.data.model.Weather
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.smartisan.weather.notification.WeatherAlertNotifier
+import kotlinx.coroutines.flow.first
 
 /**
  * 天气数据仓库——协调 API 客户端与本地缓存。
@@ -16,22 +17,6 @@ class WeatherRepository(context: Context) {
     private val appContext = context.applicationContext
     private val apiClient = WeatherApiClient.getInstance()
     private val cityRepo = CityRepository(appContext)
-
-    /** 获取天气数据：先返回缓存，再尝试刷新 */
-    suspend fun getWeatherWithCache(cityKey: String): Weather? = withContext(Dispatchers.IO) {
-        // 尝试从 API 获取
-        val weather = apiClient.fetchWeather(cityKey)
-        if (weather != null && weather.isComplete) {
-            // 缓存到数据库
-            val json = weatherToJson(weather)
-            cityRepo.cacheWeather(cityKey, json)
-            WeatherWidgetUpdateNotifier.notifyDataChanged(appContext)
-            weather
-        } else {
-            // 返回缓存
-            cityRepo.getCachedWeather(cityKey)?.let { jsonToWeather(it) }
-        }
-    }
 
     /**
      * 仅获取天气数据（不读缓存）。
@@ -46,10 +31,28 @@ class WeatherRepository(context: Context) {
         if (weather != null && weather.isComplete) {
             val json = weatherToJson(weather)
             cityRepo.cacheWeather(cityKey, json)
+
+            val city = cityRepo.savedCities
+                .first()
+                .firstOrNull {
+                    it.locationKey == cityKey
+                }
+
+            city?.let {
+                WeatherAlertNotifier.notifyIfNeeded(
+                    context = appContext,
+                    city = it,
+                    weather = weather,
+                )
+            }
+
             if (notifyWidgets) {
-                WeatherWidgetUpdateNotifier.notifyDataChanged(appContext)
+                WeatherWidgetUpdateNotifier.notifyDataChanged(
+                    appContext
+                )
             }
         }
+
         weather
     }
 
@@ -68,6 +71,10 @@ class WeatherRepository(context: Context) {
                 updatedAtMillis = record.updatedAtMillis,
             )
         }
+
+    /** 只读取缓存写入时间，供后台任务跳过仍在有效期内的城市。 */
+    suspend fun getCachedWeatherUpdatedAt(cityKey: String): Long? =
+        withContext(Dispatchers.IO) { cityRepo.getCachedWeatherUpdatedAt(cityKey) }
 
     companion object {
         /** 简单的 JSON 序列化（避免引入 Gson） */
@@ -168,6 +175,7 @@ class WeatherRepository(context: Context) {
                 d.put("publishTime", a.publishTime)
                 d.put("levelNumber", a.levelNumber)
                 d.put("type", a.type)
+                d.put("alertId", a.alertId)
                 alertArr.put(d)
             }
             o.put("alert", alertArr)
@@ -290,6 +298,7 @@ class WeatherRepository(context: Context) {
                             publishTime = d.optLong("publishTime"),
                             levelNumber = d.optString("levelNumber"),
                             type = d.optString("type"),
+                            alertId = d.optString("alertId"),
                         )
                     )
                 }

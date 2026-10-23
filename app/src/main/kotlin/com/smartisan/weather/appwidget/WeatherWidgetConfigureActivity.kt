@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.lifecycleScope
 import com.smartisan.weather.R
+import com.smartisan.weather.background.WeatherRefreshScheduler
 import com.smartisan.weather.data.city.CityRepository
 import com.smartisan.weather.data.model.SavedCity
 import com.smartisan.weather.data.settings.WeatherSettings
@@ -86,8 +87,8 @@ class WeatherWidgetConfigureActivity : WeatherEdgeToEdgeActivity() {
         }
         lifecycleScope.launch {
             val settings = WeatherSettings.getInstance(this@WeatherWidgetConfigureActivity)
-            setupComplete = settings.startupNoticeAccepted.first()
-            cities = if (setupComplete) CityRepository(this@WeatherWidgetConfigureActivity).savedCities.first() else emptyList()
+            setupComplete = true
+            cities = CityRepository(this@WeatherWidgetConfigureActivity).savedCities.first()
             if (savedInstanceState == null) {
                 selectedCityKey = settings.readWidgetCitySelections(intArrayOf(appWidgetId))[appWidgetId] ?: AUTO_CITY_SELECTION
             }
@@ -119,7 +120,7 @@ class WeatherWidgetConfigureActivity : WeatherEdgeToEdgeActivity() {
                 context = this@WeatherWidgetConfigureActivity,
                 requestedIds = intArrayOf(appWidgetId),
             )
-            WeatherWidgetScheduler.ensurePeriodicRefresh(this@WeatherWidgetConfigureActivity)
+            WeatherRefreshScheduler.ensureScheduled(this@WeatherWidgetConfigureActivity)
             if (canRefresh) {
                 WeatherWidgetScheduler.requestRefresh(
                     context = this@WeatherWidgetConfigureActivity,

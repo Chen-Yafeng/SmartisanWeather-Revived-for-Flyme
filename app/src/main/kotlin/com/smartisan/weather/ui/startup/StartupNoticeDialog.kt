@@ -40,7 +40,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.colorResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.paneTitle
@@ -66,20 +65,7 @@ import com.smartisan.weather.ui.components.weatherDrawableBackground
 import com.smartisan.weather.ui.components.weatherStateColor
 import com.smartisan.weather.util.ThemeUtils
 
-/** 首次使用说明；是否已同意和天气网络的启动时机均由主页面持有。 */
-@Composable
-fun StartupNoticeDialog(onContinue: () -> Unit, onExit: () -> Unit) {
-    WeatherNoticeDialog(
-        title = stringResource(R.string.weather_startup_notice_title),
-        message = weatherNoticeText(R.string.weather_startup_notice_message),
-        positiveText = stringResource(R.string.weather_startup_notice_continue),
-        negativeText = stringResource(R.string.weather_startup_notice_exit),
-        onPositive = onContinue,
-        onNegative = onExit,
-        tagPrefix = "startup_notice",
-    )
-}
-
+/** 原版风格说明对话框，供定位提示等场景复用。 */
 @Composable
 internal fun WeatherNoticeDialog(
     title: String,
@@ -265,18 +251,18 @@ private fun StartupNoticeButton(
     }
 }
 
-@Preview(name = "首次使用 / 日间", widthDp = 340)
-@Preview(name = "首次使用 / 夜间", widthDp = 340, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Preview(name = "说明对话框 / 日间", widthDp = 340)
+@Preview(name = "说明对话框 / 夜间", widthDp = 340, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
-private fun StartupNoticePreview() {
+private fun WeatherNoticePreview() {
     WeatherNoticeContent(
-        title = stringResource(R.string.weather_startup_notice_title),
-        message = weatherNoticeText(R.string.weather_startup_notice_message),
-        positiveText = stringResource(R.string.weather_startup_notice_continue),
-        negativeText = stringResource(R.string.weather_startup_notice_exit),
+        title = "使用说明",
+        message = AnnotatedString("请阅读本应用的数据来源与定位说明。"),
+        positiveText = "继续使用",
+        negativeText = "退出",
         onPositive = {},
         onNegative = {},
-        tagPrefix = "startup_notice",
+        tagPrefix = "notice",
         modifier = Modifier.fillMaxWidth().background(colorResource(R.color.app_surface_color), RoundedCornerShape(12.dp)),
     )
 }

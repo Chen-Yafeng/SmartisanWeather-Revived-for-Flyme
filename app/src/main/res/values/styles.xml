@@ -23,6 +23,20 @@
         <item name="android:windowBackground">@drawable/list_bg</item>
     </style>
 
+    <!--
+        小组件刷新按钮的前台定位通道：完全透明、无窗口动画、不可见、不入最近任务。
+        窗口动画设为 @null 是刻意为之，避免点击组件时出现一次可见的 Activity 切换。
+    -->
+    <style name="WeatherWidgetRefreshTheme" parent="@android:style/Theme.DeviceDefault.Light.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
+
 
     <style name="PrivacyDialogAnimation">
         <item name="android:windowEnterAnimation">@anim/privacy_dialog_enter</item>

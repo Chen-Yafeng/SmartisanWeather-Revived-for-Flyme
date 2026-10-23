@@ -1,5 +1,7 @@
 package com.smartisan.weather.ui.main
 
+import com.smartisan.weather.data.weather.AUTOMATIC_WEATHER_REFRESH_INTERVAL_MILLIS
+import com.smartisan.weather.data.weather.shouldRefreshWeatherCache
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test

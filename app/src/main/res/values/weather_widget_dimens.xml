@@ -2,4 +2,6 @@
 <resources>
     <!-- Keep the legacy card artwork outside the host-controlled widget outline. -->
     <dimen name="weather_widget_background_artwork_inset">-8dp</dimen>
+    <!-- 原版卡片图集 BgWeatherInfo 的圆角在 xxhdpi 下约 28px，换算约 10dp。 -->
+    <dimen name="weather_widget_corner_radius">10dp</dimen>
 </resources>

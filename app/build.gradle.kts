@@ -15,8 +15,8 @@ android {
         applicationId = "com.smartisan.weather"
         minSdk = 27
         targetSdk = 37
-        versionCode = 4
-        versionName = "8.1.8"
+        versionCode = 5
+        versionName = "8.2.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
     }

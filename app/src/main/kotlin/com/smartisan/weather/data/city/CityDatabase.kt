@@ -82,6 +82,10 @@ interface SavedCityDao {
     @Query("SELECT weatherJson FROM saved_cities WHERE locationKey = :key LIMIT 1")
     suspend fun getWeatherJsonByKey(key: String): String?
 
+    /** 只读取缓存写入时间，供自动刷新判定使用，避免解析整份天气 JSON。 */
+    @Query("SELECT lastUpdate FROM saved_cities WHERE locationKey = :key LIMIT 1")
+    suspend fun getCacheUpdatedAt(key: String): Long?
+
     @Query("SELECT COUNT(*) FROM saved_cities")
     suspend fun count(): Int
 

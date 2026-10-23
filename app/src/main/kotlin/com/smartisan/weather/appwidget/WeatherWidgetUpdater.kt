@@ -9,6 +9,7 @@ import com.smartisan.weather.data.city.CityRepository
 import com.smartisan.weather.data.model.SavedCity
 import com.smartisan.weather.data.settings.WeatherSettings
 import com.smartisan.weather.data.weather.WeatherRepository
+import com.smartisan.weather.data.weather.shouldRefreshWeatherCache
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -71,12 +72,31 @@ internal object WeatherWidgetUpdater {
         }
 
         val weatherRepository = WeatherRepository(appContext)
-        // 留出前台天气、搜索和定位请求的网络预算，避免后台小组件占满全局四路并发。
+
+        // 只刷新组件真正显示的城市。周期性全量刷新由 WeatherRefreshWorker 统一负责，
+        // 这里若再顺带刷全部中国城市，会让一次点击膨胀成 N 个请求，并让组件迟迟回不到 IDLE。
+        //
+        // 非手动触发（桌面 onUpdate、配置变更、App 更新、组件重排）还要过一遍缓存年龄：
+        // 桌面会在系统切换深色模式等场景反复唤醒 onUpdate，不判定就会一路重复请求。
         val widgetRefreshSemaphore = Semaphore(MAX_CONCURRENT_WIDGET_REFRESHES)
+        val citiesToRefresh = resolved.targets
+            .map(SavedWidgetTarget::city)
+            .distinctBy(SavedCity::locationKey)
+            .filter { city ->
+                manual || shouldRefreshWeatherCache(
+                    updatedAtMillis =
+                        weatherRepository.getCachedWeatherUpdatedAt(city.locationKey) ?: 0L,
+                )
+            }
+
+        // 全部命中新鲜缓存时仍然重绘：主题切换等场景需要的正是「按当前配置重新解析资源」。
+        if (citiesToRefresh.isEmpty()) {
+            renderCached(context = appContext, requestedIds = ids)
+            return@withLock
+        }
+
         val failedKeys = coroutineScope {
-            resolved.targets
-                .map(SavedWidgetTarget::city)
-                .distinctBy(SavedCity::locationKey)
+            citiesToRefresh
                 .map { city ->
                     async {
                         val weather = widgetRefreshSemaphore.withPermit {
@@ -91,7 +111,10 @@ internal object WeatherWidgetUpdater {
                                 null
                             }
                         }
-                        city.locationKey.takeUnless { weather?.isComplete == true }
+
+                        city.locationKey.takeUnless {
+                            weather?.isComplete == true
+                        }
                     }
                 }
                 .awaitAll()
@@ -133,8 +156,6 @@ internal object WeatherWidgetUpdater {
 
     private suspend fun resolveTargets(context: Context, ids: IntArray): ResolvedTargets {
         val settings = WeatherSettings.getInstance(context)
-        if (!settings.startupNoticeAccepted.first()) return ResolvedTargets.Empty
-
         val cities = CityRepository(context).savedCities.first()
         if (cities.isEmpty()) return ResolvedTargets.Empty
         val selections = settings.readWidgetCitySelections(ids)

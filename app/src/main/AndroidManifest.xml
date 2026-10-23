@@ -7,6 +7,7 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:name=".SmartisanWeatherApplication"
@@ -64,6 +65,21 @@
                 <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
             </intent-filter>
         </activity>
+
+        <!--
+            定位城市的小组件刷新：用前台定位权限取一次坐标，避免申请
+            ACCESS_BACKGROUND_LOCATION。透明窗口，用户不可见。
+            taskAffinity 置空让它独立起任务，不会把主界面所在的任务拉到前台。
+            忽略配置变更以免重建时中断正在进行的定位。
+        -->
+        <activity
+            android:name=".appwidget.WeatherWidgetRefreshActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density|fontScale"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@style/WeatherWidgetRefreshTheme" />
 
         <receiver
             android:name=".appwidget.WeatherWidgetProvider"

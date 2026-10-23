@@ -3,40 +3,18 @@ package com.smartisan.weather.appwidget
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
-import androidx.work.Constraints
 import androidx.work.Data
-import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
-import java.util.concurrent.TimeUnit
 
+/**
+ * 小组件的即时任务调度。
+ *
+ * 周期刷新已合并进 [com.smartisan.weather.background.WeatherRefreshScheduler]，
+ * 这里只保留用户可见动作触发的、需要立即执行且带状态反馈的一次性任务。
+ */
 internal object WeatherWidgetScheduler {
-    fun ensurePeriodicRefresh(context: Context) {
-        if (!hasWidgets(context)) return
-        val request = PeriodicWorkRequestBuilder<WeatherWidgetWorker>(
-            PERIODIC_INTERVAL_MINUTES,
-            TimeUnit.MINUTES,
-            PERIODIC_FLEX_MINUTES,
-            TimeUnit.MINUTES,
-        )
-            .setConstraints(
-                Constraints.Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .build(),
-            )
-            .setInputData(workerData(appWidgetId = null, manual = false, mode = MODE_REFRESH))
-            .addTag(WORK_TAG)
-            .build()
-        WorkManager.getInstance(context.applicationContext).enqueueUniquePeriodicWork(
-            PERIODIC_WORK_NAME,
-            ExistingPeriodicWorkPolicy.UPDATE,
-            request,
-        )
-    }
-
     fun requestRefresh(
         context: Context,
         appWidgetId: Int? = null,
@@ -90,10 +68,6 @@ internal object WeatherWidgetScheduler {
         )
     }
 
-    fun cancelPeriodicRefresh(context: Context) {
-        WorkManager.getInstance(context.applicationContext).cancelUniqueWork(PERIODIC_WORK_NAME)
-    }
-
     private fun workerData(appWidgetId: Int?, manual: Boolean, mode: String): Data =
         Data.Builder()
             .putString(KEY_MODE, mode)
@@ -101,7 +75,8 @@ internal object WeatherWidgetScheduler {
             .putBoolean(KEY_MANUAL, manual)
             .build()
 
-    private fun hasWidgets(context: Context): Boolean =
+    /** 供后台周期任务判断是否需要刷新与重绘；没有小组件时不必为组件做任何事。 */
+    fun hasWidgets(context: Context): Boolean =
         AppWidgetManager.getInstance(context).getAppWidgetIds(
             ComponentName(context, WeatherWidgetProvider::class.java),
         ).isNotEmpty()
@@ -114,9 +89,6 @@ internal object WeatherWidgetScheduler {
     const val MODE_REFRESH = "refresh"
     const val MODE_RENDER = "render"
     const val MODE_RESTORE = "restore"
-    private const val PERIODIC_INTERVAL_MINUTES = 30L
-    private const val PERIODIC_FLEX_MINUTES = 10L
-    private const val PERIODIC_WORK_NAME = "weather-widget-periodic-refresh"
     private const val IMMEDIATE_WORK_PREFIX = "weather-widget-refresh-"
     private const val RENDER_WORK_NAME = "weather-widget-render"
     private const val RESTORE_WORK_NAME = "weather-widget-restore"

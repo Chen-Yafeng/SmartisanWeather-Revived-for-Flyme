@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    API 31+ 的小组件容器本身带系统圆角（Glance 的 cornerRadius 只在 31+ 生效），
+    遮罩圆角跟随系统半径，才能和容器外轮廓对齐。
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/weather_top_card_scrim" />
+    <corners android:radius="@android:dimen/system_app_widget_background_radius" />
+</shape>

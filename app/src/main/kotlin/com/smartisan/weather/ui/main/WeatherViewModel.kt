@@ -1,7 +1,6 @@
 package com.smartisan.weather.ui.main
 
 import android.app.Application
-import android.os.SystemClock
 import androidx.annotation.StringRes
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -14,7 +13,9 @@ import com.smartisan.weather.data.location.DeviceLocationSource
 import com.smartisan.weather.data.model.SavedCity
 import com.smartisan.weather.data.model.Weather
 import com.smartisan.weather.data.settings.WeatherSettings
+import com.smartisan.weather.data.weather.AUTOMATIC_WEATHER_REFRESH_INTERVAL_MILLIS
 import com.smartisan.weather.data.weather.WeatherRepository
+import com.smartisan.weather.data.weather.shouldRefreshWeatherCache
 import com.smartisan.weather.util.DebugLog
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -24,8 +25,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.receiveAsFlow
 
 /**
@@ -59,17 +62,6 @@ sealed interface WeatherEvent {
     data class LocationFailed(@param:StringRes val message: Int) : WeatherEvent
 }
 
-internal const val AUTOMATIC_WEATHER_REFRESH_INTERVAL_MILLIS = 10L * 60L * 1_000L
-
-internal fun shouldRefreshWeatherCache(
-    updatedAtMillis: Long,
-    nowMillis: Long = System.currentTimeMillis(),
-): Boolean {
-    if (updatedAtMillis <= 0L) return true
-    val ageMillis = nowMillis - updatedAtMillis
-    return ageMillis !in 0L until AUTOMATIC_WEATHER_REFRESH_INTERVAL_MILLIS
-}
-
 /**
  * 主界面 ViewModel。
  */
@@ -80,7 +72,10 @@ class WeatherViewModel(app: Application) : AndroidViewModel(app) {
     private val settings = WeatherSettings.getInstance(app)
     private val locationResolver = LocationCityResolver(app)
     private val locationSource = DeviceLocationSource(app)
-    private var lastLocationAttemptMillis: Long? = null
+
+    /** 定位开始时已强制刷新的城市，用于避免定位结束/失败后的重复请求。 */
+    private var prefetchedKey: String? = null
+    private var prefetchedAtMillis: Long = 0L
 
     private val _uiState = MutableStateFlow(WeatherUiState())
     val uiState: StateFlow<WeatherUiState> = _uiState.asStateFlow()
@@ -258,15 +253,34 @@ class WeatherViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** Owns acquisition, city resolution and refresh as one cancellable foreground operation. */
+    /**
+     * 前台定位：取坐标 → 反查城市 → 写入定位城市 → 刷新天气。
+     *
+     * [automatic] 为 true 时受 10 分钟节流，时间戳存 DataStore（跨进程重启有效），
+     * 同时要求已经存在定位城市；手动入口（刷新按钮、定位入口、搜索页定位）不受节流限制。
+     */
     fun refreshLocation(automatic: Boolean = false) {
         if (locationJob?.isActive == true) return
         val previousCity = _uiState.value.cities.firstOrNull(SavedCity::isLocationCity)
-        val now = SystemClock.elapsedRealtime()
-        if (automatic && (previousCity == null || !shouldRefreshLocation(lastLocationAttemptMillis, now))) return
-        lastLocationAttemptMillis = now
-        _uiState.update { it.copy(isLocating = true) }
+        // 没有定位城市时自动定位没有意义：用户可能刚把它删掉，不应该自己长回来。
+        if (automatic && previousCity == null) return
         locationJob = viewModelScope.launch {
+            val nowMillis = System.currentTimeMillis()
+            if (
+                automatic &&
+                !shouldRefreshLocation(settings.readLastLocationAttemptMillis(), nowMillis)
+            ) {
+                return@launch
+            }
+            settings.markLocationAttempt(nowMillis)
+            _uiState.update { it.copy(isLocating = true) }
+            // 取坐标最长要等 20 秒。先把已有定位城市的天气刷起来，点下去就有反馈；
+            // 若定位结果落在同一座城市，随后那一步会因为缓存刚写入而跳过，不会重复请求。
+            val prefetched = previousCity?.locationKey?.also { key ->
+                prefetchedKey = key
+                prefetchedAtMillis = nowMillis
+                loadWeather(key, forceRefresh = true)
+            }
             try {
                 val location = locationSource.getCurrentLocation()
                 if (location == null) {
@@ -274,7 +288,11 @@ class WeatherViewModel(app: Application) : AndroidViewModel(app) {
                     return@launch
                 }
                 val city = locationResolver.resolve(location).getOrThrow()
-                if (cityRepo.setLocationCity(city) == CityRepository.AddResult.LIMIT_EXCEEDED) {
+                // 前台会自己请求并重绘小组件，所以城市写入不再顺带入队一次组件刷新。
+                if (
+                    cityRepo.setLocationCity(city, refreshWidgets = false) ==
+                    CityRepository.AddResult.LIMIT_EXCEEDED
+                ) {
                     if (!automatic) locationUnavailable(R.string.city_count_over_limit)
                     return@launch
                 }
@@ -282,10 +300,14 @@ class WeatherViewModel(app: Application) : AndroidViewModel(app) {
                 // otherwise a fast response could be discarded as belonging to an unknown city.
                 _uiState.first { state -> state.cities.any { it.locationKey == city.cityId } }
                 if (!automatic) focusCity(city.cityId)
-                loadWeather(city.cityId, forceRefresh = !automatic)
+                loadWeather(
+                    cityKey = city.cityId,
+                    forceRefresh = !automatic && city.cityId != prefetched,
+                )
             } catch (cancelled: CancellationException) {
                 // A stopped screen must not report failure or turn cancellation into a refresh.
-                lastLocationAttemptMillis = null
+                // 同时清掉节流时间戳，取消不占用接下来 10 分钟的自动定位机会。
+                withContext(NonCancellable) { settings.clearLocationAttempt() }
                 throw cancelled
             } catch (error: Exception) {
                 DebugLog.log(
@@ -316,8 +338,12 @@ class WeatherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun locationUnavailable(@StringRes message: Int) {
         // A failed coordinate fix must not prevent a user from refreshing existing weather.
-        _uiState.value.cities.firstOrNull(SavedCity::isLocationCity)?.let {
-            loadWeather(it.locationKey, forceRefresh = true)
+        // 若定位开始时已经强制刷过同一座城市，这里就只走缓存判定，避免同一城市连发两次请求。
+        _uiState.value.cities.firstOrNull(SavedCity::isLocationCity)?.let { city ->
+            val alreadyRefreshed = city.locationKey == prefetchedKey &&
+                System.currentTimeMillis() - prefetchedAtMillis <
+                AUTOMATIC_WEATHER_REFRESH_INTERVAL_MILLIS
+            loadWeather(city.locationKey, forceRefresh = !alreadyRefreshed)
         }
         eventChannel.trySend(WeatherEvent.LocationFailed(message))
     }

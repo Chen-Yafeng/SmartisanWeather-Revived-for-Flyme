@@ -39,6 +39,8 @@
     <string name="weather_alert_frost_fire">森林火灾</string>
     <string name="weather_alert_frozen">冰冻</string>
     <string name="weather_alert_low_temp">低温</string>
+    <string name="weather_alert_notification_channel_description">已保存城市的天气预警提醒</string>
+    <string name="weather_alert_notification_summary">%1$s：%2$d 条天气预警</string>
     <string name="weather_alert_road_ice_and_snow">道路冰雪</string>
     <string name="weather_alert_thunderstorm">雷雨大风</string>
     <string name="weather_alert_time_now">刚刚更新</string>
@@ -56,10 +58,7 @@
     <string name="weather_pager_aqi_text">空气质量 </string>
     <string name="weather_pager_update_text">更新于 %1$s</string>
     <string name="weather_pager_week_and_date_text">%1$s %2$s</string>
-    <string name="weather_startup_notice_title">使用说明</string>
-    <string name="weather_startup_notice_exit">退出</string>
-    <string name="weather_startup_notice_continue">继续使用</string>
-    <string name="weather_startup_notice_message">本应用为个人开发者<b>使用现代 Android 技术栈完全重写</b>的非官方开源版本，与 Smartisan、锤子科技、小米及 AccuWeather 无任何隶属、授权或合作关系，仅供学习与技术交流使用。\n\n数据通过小米天气接口获取，其中全球城市数据由 AccuWeather 提供；定位仅用于匹配所在城市。应用内无账号系统、无广告、无数据统计及中转服务器；所有数据仅存留于本机，源码已在 GitHub 完全开源。天气信息仅供参考。</string>
+
     <string name="weather_request_location_permission_tips_cancel">取消</string>
     <string name="weather_request_location_permission_tips_setting">去设置</string>
     <string name="weather_search_city_default_locaiton">定位</string>
