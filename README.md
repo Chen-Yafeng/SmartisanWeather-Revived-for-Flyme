@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="app/src/main/res/mipmap-xxhdpi/weather_icon.png" width="112" alt="锤子天气图标" />
+  <img src="app/src/main/res/mipmap-xxhdpi/weather_icon.png" width="112" alt="天气图标" />
 </p>
 
-<h1 align="center">锤子天气复刻 (Smartisan Weather Revived) <sup>for Flyme</sup></h1>
+<h1 align="center">锤子天气复刻 <sup>for Flyme</sup></h1>
 
 <p align="center">
   <a href="https://kotlinlang.org"><img src="https://img.shields.io/badge/Kotlin-2.4.0-7F52FF?logo=kotlin" alt="Kotlin 2.4.0" /></a>
-  <a href="https://developer.android.com/build"><img src="https://img.shields.io/badge/AGP-9.4.0--alpha08-3DDC84?logo=android" alt="AGP 9.4.0" /></a>
+  <a href="https://developer.android.com/build"><img src="https://img.shields.io/badge/AGP-9.4.0-3DDC84?logo=android" alt="AGP 9.4.0" /></a>
   <a href="https://developer.android.com/about/versions/oreo/android-8.1"><img src="https://img.shields.io/badge/minSdk-27-3DDC84?logo=android" alt="minSdk 27" /></a>
   <img src="https://img.shields.io/badge/Coverage-Global-1677FF" alt="支持全球城市" />
 </p>
