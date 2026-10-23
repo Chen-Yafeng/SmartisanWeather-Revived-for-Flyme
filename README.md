@@ -2,11 +2,11 @@
   <img src="app/src/main/res/mipmap-xxhdpi/weather_icon.png" width="112" alt="锤子天气图标" />
 </p>
 
-<h1 align="center">锤子天气复刻 (Smartisan Weather Revived)</h1>
+<h1 align="center">锤子天气复刻 (Smartisan Weather Revived) <sup>for Flyme</sup></h1>
 
 <p align="center">
   <a href="https://kotlinlang.org"><img src="https://img.shields.io/badge/Kotlin-2.4.0-7F52FF?logo=kotlin" alt="Kotlin 2.4.0" /></a>
-  <a href="https://developer.android.com/build"><img src="https://img.shields.io/badge/AGP-9.4.0--alpha08-3DDC84?logo=android" alt="AGP 9.4.0-alpha08" /></a>
+  <a href="https://developer.android.com/build"><img src="https://img.shields.io/badge/AGP-9.4.0--alpha08-3DDC84?logo=android" alt="AGP 9.4.0" /></a>
   <a href="https://developer.android.com/about/versions/oreo/android-8.1"><img src="https://img.shields.io/badge/minSdk-27-3DDC84?logo=android" alt="minSdk 27" /></a>
   <img src="https://img.shields.io/badge/Coverage-Global-1677FF" alt="支持全球城市" />
 </p>
@@ -53,11 +53,19 @@ Smartisan OS 早已退出历史舞台，其中的天气应用也留在了旧 And
 
 实际内容、准确性和可用性以小米天气及对应数据提供方为准。
 
+## 针对 Flyme 的优化
+
+- 修改应用图标为系统主题「几何」中的天气图标。
+- 调整了桌面小组件的显示逻辑，避免组件元素堆积。
+- 修改了桌面小组件的点九图，修复显示错误。
+- 增加了天气预警信息推送（依赖于后台常驻）。
+- 优化天气和位置更新逻辑。
+
 ## 技术栈
 
 | 类别 | 技术 |
 | --- | --- |
-| 构建 | Android Gradle Plugin `9.4.0-alpha08`、Gradle `9.6.1`、JDK 25（Java 17 字节码） |
+| 构建 | Android Gradle Plugin `9.4.0`、Gradle `9.6.1`、JDK 25（Java 17 字节码） |
 | 语言 | Kotlin `2.4.0` |
 | UI | Jetpack Compose、自定义 Smartisan 组件、Drawable / NinePatch 资源绘制 |
 | 状态 | ViewModel、StateFlow、Coroutines `1.11.0` |
@@ -85,3 +93,4 @@ Debug APK 位于 `app/build/outputs/apk/debug/`。
 
 - Smartisan OS、相关商标、视觉设计及原版素材的知识产权归原权利人所有。
 - 天气数据仅供参考，准确性和可用性以小米天气及对应数据提供方为准。
+- 本复刻项目的所有代码修改基于 AI 的代码能力，本人只提供修改策略。
